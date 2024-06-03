@@ -37,8 +37,8 @@ class UNet(nn.Module):
         dec3 = self.dec3(torch.cat([nn.Upsample(scale_factor=2)(dec4), enc3], dim=1))
         dec2 = self.dec2(torch.cat([nn.Upsample(scale_factor=2)(dec3), enc2], dim=1))
         dec1 = self.dec1(torch.cat([nn.Upsample(scale_factor=2)(dec2), enc1], dim=1))
-        final = self.final(dec1)
-        return final
+        output = self.final(dec1)
+        return output
 
     def _initialize_weights(self):
         for m in self.modules():

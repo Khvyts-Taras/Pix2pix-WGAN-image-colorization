@@ -24,8 +24,15 @@ else:
 
 unet.eval()
 
-transform = transforms.Compose([
+# Трансформ для уменьшения изображения до 64x64 и приведения к серому формату
+transform_to_64 = transforms.Compose([
     transforms.Resize((64, 64)),
+    transforms.Grayscale(),
+    transforms.ToTensor()
+])
+
+# Трансформ для приведения изображения к тензору
+transform_to_tensor = transforms.Compose([
     transforms.Grayscale(),
     transforms.ToTensor()
 ])
@@ -37,11 +44,26 @@ os.makedirs(output_dir, exist_ok=True)
 for img_name in os.listdir(test_dir):
     img_path = os.path.join(test_dir, img_name)
     img = Image.open(img_path)
-    img = transform(img).unsqueeze(0).to(device)
-
+    
+    # Оригинальный размер изображения
+    original_size = img.size
+    
+    # Преобразование изображения к размеру 64x64
+    img_64 = transform_to_64(img).unsqueeze(0).to(device)
+    
     with torch.no_grad():
-        output = unet(img)
-
-    vutils.save_image(output, os.path.join(output_dir, f'sample_{img_name}.png'), normalize=True)
+        output_64 = unet(img_64)
+    
+    # Преобразование результата к оригинальному размеру
+    output_64_resized = nn.functional.interpolate(output_64, size=original_size, mode='bilinear', align_corners=False)
+    
+    # Преобразование оригинального изображения к серому и тензору
+    img_gray = transform_to_tensor(img).unsqueeze(0).to(device)
+    
+    # Прибавление оригинального серого изображения
+    final_output = output_64_resized + img_gray
+    
+    # Сохранение результата
+    vutils.save_image(final_output, os.path.join(output_dir, f'sample_{img_name}.png'), normalize=True)
 
 print("Процесс завершён. Результаты сохранены в папке 'output'.")
