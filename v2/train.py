@@ -70,41 +70,41 @@ for epoch in range(start_epoch, num_epochs):
         imgs = imgs.to(device)
         gray_imgs = transforms.Grayscale()(imgs)
 
-        for _ in range(N_CRITIC):
-            optimizer_d.zero_grad()
 
-            real_imgs = torch.cat((gray_imgs, imgs), dim=1)
-            real_out = critic(real_imgs)
-            fake_imgs = unet(gray_imgs) + gray_imgs
-            fake_concat = torch.cat((gray_imgs, fake_imgs), dim=1)
-            fake_out = critic(fake_concat.detach())
+        optimizer_d.zero_grad()
 
-            grad_penalty = gradient_penalty(real_imgs, fake_concat, critic)
-            d_loss = (fake_out.mean() - real_out.mean()) + GRADIENT_PENALTY * grad_penalty
-            d_loss.backward()
-            optimizer_d.step()
-            total_iters += 1
-
-        optimizer_g.zero_grad()
-
+        real_imgs = torch.cat((gray_imgs, imgs), dim=1)
+        real_out = critic(real_imgs)
         fake_imgs = unet(gray_imgs) + gray_imgs
         fake_concat = torch.cat((gray_imgs, fake_imgs), dim=1)
-        fake_out = critic(fake_concat)
-        g_loss = -fake_out.mean()
-        g_loss.backward()
-        optimizer_g.step()
+        fake_out = critic(fake_concat.detach())
+
+        grad_penalty = gradient_penalty(real_imgs, fake_concat, critic)
+        d_loss = (fake_out.mean() - real_out.mean()) + GRADIENT_PENALTY * grad_penalty
+        d_loss.backward()
+        optimizer_d.step()
+        total_iters += 1
+
+
+        if i % N_CRITIC == 0:
+            optimizer_g.zero_grad()
+
+            fake_imgs = unet(gray_imgs) + gray_imgs
+            fake_concat = torch.cat((gray_imgs, fake_imgs), dim=1)
+            fake_out = critic(fake_concat)
+            g_loss = -fake_out.mean()
+            g_loss.backward()
+            optimizer_g.step()
 
         if i % 100 == 0:
             log_message = (f"Epoch [{epoch}/{num_epochs}] Batch [{i}/{len(dataloader)}] "
                            f"D Loss: {d_loss.item():.4f}, G Loss: {g_loss.item():.4f}")
             print(log_message)
-
-
             with open("training_log.txt", "a") as log_file:
                 log_file.write(log_message + "\n")
 
         # Сохранение моделей и контрольной точки
-        if i % 100 == 0:
+        if i % 500 == 0:
             torch.save({
                 'epoch': epoch,
                 'unet_state_dict': unet.state_dict(),
@@ -112,6 +112,9 @@ for epoch in range(start_epoch, num_epochs):
                 'optimizer_g_state_dict': optimizer_g.state_dict(),
                 'optimizer_d_state_dict': optimizer_d.state_dict()
             }, checkpoint_path)
+            print('model saved')
+
             with torch.no_grad():
                 fake_imgs = unet(gray_imgs) + gray_imgs
                 vutils.save_image(fake_imgs, os.path.join('samples', 'sample_' + str(epoch + 1) + f'_{i}.png'), normalize=True)
+            print('image saved')
