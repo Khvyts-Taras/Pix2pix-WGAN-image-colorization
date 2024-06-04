@@ -11,7 +11,7 @@ import torchvision.utils as vutils
 from models import UNet, Critic
 
 # Параметры
-batch_size = 16
+batch_size = 32
 lr = 1e-4
 num_epochs = 100
 N_CRITIC = 5
